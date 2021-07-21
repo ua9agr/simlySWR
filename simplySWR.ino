@@ -38,14 +38,15 @@ float measure_swr(int forward_voltage, int reverse_voltage) {
   return swr;
 }
 
-// the setup function runs once when you press reset or power the board
+uint16_t Vcc_m
+
 void setup() {
   Serial.begin(9600);
 
   Serial.println("FWD \t REV \t SWR");
   
-  //Analogue ref 1v1
-  analogReference(INTERNAL);
+
+   
   // initialize pins.
   pinMode(pin_reflected_led, OUTPUT);
   pinMode(pin_forward_led, OUTPUT);
@@ -57,29 +58,46 @@ void setup() {
   pinMode(pin_reflected_v, INPUT);
 
   pinMode(pin_button, INPUT_PULLUP);
+
+
+  analogReference(INTERNAL2V56);
+  Vcc_m = analogRead(VCCM);
+  analogReference(INTERNAL);
+  pinMode(DAC0, ANALOG);
 }
 
 // the loop function runs over and over again forever
 void loop() {
   int fwd = analogRead(pin_forward_v);
   int rev = analogRead(pin_reflected_v);
-  float swr = measure_swr(fwd, rev);
+  //float swr = measure_swr(fwd, rev);
+  float swr = 1.0;
 
   if (digitalRead(pin_button)) { /// Кнопка нажата 
     digitalWrite(pin_forward_led, 0);
-    analogWrite(0,int(1024.0*swr/5.0)); //КСВ
+    digitalWrite(pin_reflected_led, 1);
+    if (swr < 3)
+    {
+      analogWrite(DAC0,int(255.0*swr/Vcc_m)); //КСВ  
+    }
+    else
+    {
+      analogWrite(DAC0,60); //КСВ BIG
+    }
+    
   }
   else
   {
     digitalWrite(pin_forward_led, 1);
-    analogWrite(0,fwd); //прямая
+    digitalWrite(pin_reflected_led, 0);
+    analogWrite(DAC0,255); //прямая
   }
 
   Serial.println(fwd);
   Serial.print("\t");
   Serial.println(rev);
   Serial.print("\t");
-  Serial.println(swr);
+  Serial.println(Vcc_m);
   
     delay(100);              // wait for a second
 }
