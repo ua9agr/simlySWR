@@ -1,26 +1,29 @@
 /*
- SWR meter
- 
- Read FWR / REV from reflectometer (like N7DDC schematic) and out it as Voltage thru PWM. Button & LEDs for swith mode
+  SWR meter
 
+  Read FWR / REV from reflectometer (like N7DDC schematic) and out it as Voltage thru PWM. Button & LEDs for swith mode
   16/07/02021
   UA9AGR
- */
+*/
 
+float my_vcc_const = 1.1;    // начальное значение константы должно быть 1.1
 
 //PIN Def
 #define pin_forward_v  A0        // input (analog) - SWR sensor forward voltage
 #define pin_reflected_v A1       // input (analog) - SWR sensor reverse voltage
 
-#define pin_forward_led   13
-#define pin_reflected_led  12
+#define pin_green_led   6
+#define pin_red_led  3
 
-#define pin_button  10
+#define pin_button  5
+
+#define pin_out 4
 
 
-#define FORWARD_V_TX_SENSE_THRESH 6
+#define FORWARD_V_TX_SENSE_THRESH 6   // измерение КСВ начиная от, у.е.
+#define mult  10
 
-//-----------------------------------------------------------------------------------------------------
+
 float measure_swr(int forward_voltage, int reverse_voltage) {
 
   float swr = 0;
@@ -38,32 +41,32 @@ float measure_swr(int forward_voltage, int reverse_voltage) {
   return swr;
 }
 
-uint16_t Vcc_m
+uint16_t Vcc_m;
+float m;
 
 void setup() {
   Serial.begin(9600);
-
   Serial.println("FWD \t REV \t SWR");
   
-
    
   // initialize pins.
-  pinMode(pin_reflected_led, OUTPUT);
-  pinMode(pin_forward_led, OUTPUT);
-  
+  pinMode(pin_red_led, OUTPUT);
+  pinMode(pin_green_led, OUTPUT);
   digitalWrite(pin_forward_v, LOW);
   pinMode(pin_forward_v, INPUT);
-  
   digitalWrite(pin_reflected_v, LOW);
   pinMode(pin_reflected_v, INPUT);
-
   pinMode(pin_button, INPUT_PULLUP);
 
 
   analogReference(INTERNAL2V56);
-  Vcc_m = analogRead(VCCM);
-  analogReference(INTERNAL);
+  //analogReference(INTERNAL4V096);
+  delay(500);
+  Vcc_m = analogRead(VCCM);        // 5  1016 (4V096 ref)  
+                                  //5,105 В = 2042 (2v56 ref) 
+  analogReference(DEFAULT);
   pinMode(DAC0, ANALOG);
+  m = 2042.0/Vcc_m;
 }
 
 // the loop function runs over and over again forever
@@ -73,31 +76,32 @@ void loop() {
   //float swr = measure_swr(fwd, rev);
   float swr = 1.0;
 
-  if (digitalRead(pin_button)) { /// Кнопка нажата 
-    digitalWrite(pin_forward_led, 0);
-    digitalWrite(pin_reflected_led, 1);
-    if (swr < 3)
-    {
-      analogWrite(DAC0,int(255.0*swr/Vcc_m)); //КСВ  
-    }
-    else
-    {
-      analogWrite(DAC0,60); //КСВ BIG
-    }
+  if (digitalRead(pin_button)) { /// Кнопка не нажата 
+    digitalWrite(pin_green_led, 0);
+    digitalWrite(pin_red_led, 1);
+//    if (swr < 3.5)
+//    {
+//      analogWrite(DAC0,int(255.0*swr/Vcc_m)); //КСВ  
+//    }
+//    else
+//    {
+//      analogWrite(DAC0,60); //КСВ BIG
+//    }
+      analogWrite(DAC0,91.0*m); //91m -> 1V. 43 -> 0.5V  255-> 3V81
     
   }
-  else
+  else  /// Кнопка нажата
   {
-    digitalWrite(pin_forward_led, 1);
-    digitalWrite(pin_reflected_led, 0);
-    analogWrite(DAC0,255); //прямая
+    digitalWrite(pin_green_led, 1);
+    digitalWrite(pin_red_led, 0);
+    analogWrite(DAC0,Vcc_m/48); //прямая
   }
 
-  Serial.println(fwd);
+  Serial.print(fwd);
   Serial.print("\t");
-  Serial.println(rev);
+  Serial.print(rev);
   Serial.print("\t");
-  Serial.println(Vcc_m);
+  Serial.println((m-1.0)*1000);
   
     delay(100);              // wait for a second
 }
